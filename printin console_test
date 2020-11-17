@@ -1,0 +1,84 @@
+import collections
+import uuid
+from collections import defaultdict,Counter
+import pandas as pd
+import numpy as np
+import csv
+import datetime
+import janitor
+import flask
+from pandas import Series
+from numpy.random import randn
+from main import *
+
+def allColumnHeaders():
+    print(data.dtypes)
+
+#def top10pages():
+    #data['count'] = data.groupby('location')['id'].transform(len)  # ADD COUNT COLUMN WHICH STORES FREQUENCY OF Loc
+    #result = (data.groupby(['location' , 'count']).size().reset_index()).sort_values('count', ascending =False)
+    #result = (result[['location' , 'count']])
+    #result = result.iloc[:10].to_csv()
+    #print(result)
+    #print(result.iloc[:13 , :10])
+
+def toppagesvisited():
+    s = int(input("Enter the value of n to display top n pages"))
+    data['count'] = data.groupby('location')['id'].transform(len)  # ADD COUNT COLUMN WHICH STORES FREQUENCY OF Loc
+    result = (data.groupby(['location' , 'count']).size().reset_index()).sort_values('count', ascending =False)
+    result = (result[['location' , 'count']])
+    result = result.iloc[:s].to_csv()
+    print(result)
+    #print(result.iloc[:13 , :10])
+
+#data['count'] = data.groupby('location')['location'].transform(pd.Series.value_counts)
+#data.sort_values('count', inplace=True, ascending=False)
+#print(format(data))
+
+
+def timeSpentMost():
+    s = int(input("Enter the value of n to display top n pages where time was spent most"))
+    data['timeSpent'] = data.groupby('location')['event_value'].transform('sum')
+    result = (data.groupby(['location', 'timeSpent']).size().reset_index()).sort_values('timeSpent', ascending=False)
+    print(result.iloc[:s])
+    #time_spent = data.groupby('location')['event_value'].sum().rename("Time Spent").reset_index()
+    #data_1 = data.merge(time_spent)
+    #data['time spent'] = data.groupby('location')['event_value'].sum()
+    #print(data.groupby('location')['event_value'].sum()) WORKING CODE
+
+def topActiveUsers():
+    s = int(input("Enter the value of n to display top n active users"))
+    data['timeSpent'] = data.groupby('uuid')['event_value'].transform('sum')
+    result = (data.groupby(['uuid' , 'timeSpent']).size().reset_index()).sort_values('timeSpent' , ascending=False)
+    result = result.iloc[:10].to_json()
+
+    print(result)
+
+
+def daterange(data):
+    start = '2018-02-02'
+    end = '2018-03-06'
+    #Y:M:D
+    data['date'] = pd.to_datetime(data['date'])
+    mask = (data['date'] > start) & (data['date'] <= end)
+    data = data.loc[mask]
+
+    data['count'] = data.groupby('location')['id'].transform(len)  # ADD COUNT COLUMN WHICH STORES FREQUENCY OF Loc
+    result = (data.groupby(['location', 'count']).size().reset_index()).sort_values('count', ascending=False)
+    print(data)
+    #print(result.iloc[:10])
+
+
+def topNVistedPagesMonthly(data):
+    res = data.set_index('date').resample('M')['location'].sum()
+    res.to_frame()
+    print(res)
+
+
+if __name__ == '__main__':
+    r_filenameTSV = './resources/events.csv'
+    data = pd.read_csv(r_filenameTSV, sep='\t', quoting=csv.QUOTE_NONE , parse_dates=['date'])
+    toppagesvisited()
+
+    r,c = data.shape
+    print(r)
