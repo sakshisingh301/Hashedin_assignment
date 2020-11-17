@@ -1,0 +1,142 @@
+import os as os
+import pandas as pd
+import csv
+from flask import Flask, render_template, request , session, flash
+
+import logging
+from flask.cli import AppGroup
+
+app = Flask(__name__ , template_folder='template')
+user_cli = AppGroup('user')
+
+@app.errorhandler(404)              #ERROR HANDLING 404 WEBPAGE
+def page_not_found(e):
+    try:
+        return render_template('404.html')
+    except TypeError:
+        print("TypeError : Invalid Status arg")     #TYPEERROR INVALID STATUS ERROR HANDLING
+
+
+
+
+@app.route('/login', methods=['POST'])
+def do_admin_login():
+    if request.form['password'] == 'password' and request.form['username'] == 'admin':
+        session['logged_in'] = True
+    else:
+        flash('wrong password!')
+    return home()
+
+@app.route('/')
+def home():
+    if not session.get('logged_in'):
+        return render_template('login.html')
+    else:
+        return render_template('Table.html')
+
+
+#use only for tstamp, date, event_value , created_at, last_updated_at, id
+#this is used to sort the above specified headers. User can give the count
+@app.route("/report/pages/<val>/<count>")
+def orderBy(val, count):
+    if session.get('logged_in'):
+        s = (str)(val)
+        result = data.sort_values(s ,axis=0, ascending=False)
+        c = (int)(count)
+        result = result.iloc[:c]
+        html_file = result.to_html()
+        return html_file
+    else:
+        return render_template('login.html')
+
+#this will return the top n most viewed on that location (page)
+@app.route("/report/pages/most/viewed/<count>")
+def order0(count):
+    if session.get('logged_in'):
+        c = (int)(count)
+        data['no. of views'] = data.groupby('location')['id'].transform(len)  # ADD COUNT COLUMN WHICH STORES FREQUENCY OF Loc
+        result = (data.groupby(['location', 'no. of views']).size().reset_index()).sort_values('no. of views', ascending=False)
+        result = (result[['location', 'no. of views']])
+        result = result.iloc[:c]
+
+        html_file = result.to_html()
+        return html_file
+    else:
+        return render_template('login.html')
+
+
+#this will return the top n time spent on that location (page)
+@app.route("/report/pages/most/timeSpent/<count>")
+def order1(count):
+    if session.get('logged_in'):
+        data['timeSpent'] = data.groupby('location')['event_value'].transform('sum')
+        result = (data.groupby(['location', 'timeSpent']).size().reset_index()).sort_values('timeSpent', ascending=False)
+        c = (int)(count)
+        result = result.iloc[:c]
+        html_file = result.to_html()
+        return html_file
+    else:
+        return render_template('login.html')
+
+
+@app.route("/report/users/timeSpent/<count>")
+def order2(count):
+    if session.get('logged_in'):
+        data['timeSpent'] = data.groupby('uuid')['event_value'].transform('sum')
+        result = (data.groupby(['uuid', 'timeSpent']).size().reset_index()).sort_values('timeSpent', ascending=False)
+        c = (int)(count)
+        result = result.iloc[:c]
+        html_file = result.to_html()
+        return html_file
+    else:
+        return render_template('login.html')
+
+
+@app.route("/report/pages/monthly")
+def order3():
+    if session.get('logged_in'):
+        res = data.set_index('date').resample('M')['location'].sum()
+        res = res.to_frame()
+        frame = res.to_html()
+        return frame
+    else:
+        return render_template('login.html')
+
+@app.route("/report/pages/quaterly")
+def order4():
+    if session.get('logged_in'):
+        res = data.set_index('date').resample('QS')['location'].sum()
+        res = res.to_frame()
+        frame = res.to_html()
+        return frame
+    else:
+        return render_template('login.html')
+
+@app.route("/report/pages/range")
+def order5():
+    if session.get('logged_in'):
+        start = '2018-02-02'
+        end = '2018-03-03'
+        data = pd.read_csv(r_filenameTSV, sep='\t', quoting=csv.QUOTE_NONE, parse_dates=['date'])
+
+        data['date'] = pd.to_datetime(data['date'])
+        mask = (data['date'] > start) & (data['date'] <= end)
+        data = data.loc[mask]
+
+        html_file = data.to_html()
+        return html_file
+    else:
+        return render_template('login.html')
+
+if __name__ == "__main__":
+    logging.info("Welcome to the csv reader program")
+    app.secret_key = os.urandom(12)
+    try:  # CSV FILE NOT FOUND
+        r_filenameTSV = '/resources/events.csv'
+        data = pd.read_csv(r_filenameTSV, sep='\t', quoting=csv.QUOTE_NONE, parse_dates=['date'])
+    except:
+        print("File not found Exception Caught. Please specify proper path")
+
+    app.run(debug=True)
+    r,c = data.shape
+    page_not_found
