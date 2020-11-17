@@ -1,0 +1,117 @@
+import collections
+import uuid
+from collections import defaultdict,Counter
+import pandas as pd
+import numpy as np
+import csv
+import datetime
+import janitor
+from flask import Flask, render_template, request , jsonify, g
+import json
+import time
+
+from pandas.io.json import json_normalize
+
+app = Flask(__name__ , template_folder='template')
+
+@app.route("/")
+def main_csv():
+    res = data.to_json()
+    return res
+
+
+
+@app.before_request
+def before_request():
+    g.start = time.time()
+    print(g.start)
+
+@app.after_request
+def after_request(response):
+    diff = time.time() - g.start
+    if ((response.response) and
+        (200 <= response.status_code < 300) and
+        (response.content_type.startswith('text/html'))):
+        response.set_data(response.get_data().replace(
+            b'__EXECUTION_TIME__', bytes(str(diff), 'utf-8')))
+    return response
+
+#CODE TO DISPLAY TOP VISITED LOCATIONS IN DESCENING ORDER IN TABLE
+#http://127.0.0.1:5000/report/pages/static-location
+
+
+#This will return full csv file sorted on one column specified
+@app.route("/report/pages/<val>/<count>")
+def orderBy(val, count):
+    s = (str)(val)
+    c = (int)(count)
+    result = data.sort_values(s ,axis=0, ascending=False).iloc[:c].to_json()
+
+    return result
+
+@app.route("/report/pages/timeSpent/<count>")
+def order(count):
+
+    data['timeSpent'] = data.groupby('location')['event_value'].transform('sum')
+    result = (data.groupby(['location', 'timeSpent']).size().reset_index()).sort_values('timeSpent', ascending=False)
+    c = (int)(count)
+    result = result.iloc[:c].to_json()
+
+    return result
+
+@app.route("/report/users/timeSpent/<count>")
+def order2(count):
+
+    data['timeSpent'] = data.groupby('uuid')['event_value'].transform('sum')
+    result = (data.groupby(['uuid', 'timeSpent']).size().reset_index()).sort_values('timeSpent', ascending=False)
+    c = (int)(count)
+    result = result.iloc[:c].to_json()
+    return result
+
+@app.route("/report/pages/monthly")
+def order3():
+    res = data.set_index('date').resample('M')['location'].sum()
+    res = res.to_frame()
+    res = res.to_json()
+
+    return res
+
+@app.route("/report/pages/quaterly")
+def order4():
+
+    res = data.set_index('date').resample('QS')['location'].sum()
+    res = res.to_frame()
+    res = res.to_json()
+
+    return res
+
+@app.route("/report/pages/range")
+def order5():
+
+    start = '2018-02-02'
+    end = '2018-03-03'
+    data = pd.read_csv(r_filenameTSV, sep='\t', quoting=csv.QUOTE_NONE, parse_dates=['date'])
+
+    data['date'] = pd.to_datetime(data['date'])
+    mask = (data['date'] > start) & (data['date'] <= end)
+    data = data.loc[mask]
+
+    json = data.to_json()
+    return json
+
+if __name__ == "__main__":
+
+
+
+    try:                    #CSV FILE NOT FOUND
+        r_filenameTSV = './resources/events.csv'
+        data = pd.read_csv(r_filenameTSV, sep='\t', quoting=csv.QUOTE_NONE, parse_dates=['date'])
+    except:
+        print("File not found Exception Caught. Please specify proper path")
+
+
+
+    #data['timeSpent'] = data.groupby('location')['event_value'].transform('sum')
+    app.run(debug=True)
+    #print(before_request)
+    print(after_request(order5))
